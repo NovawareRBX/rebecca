@@ -1,0 +1,786 @@
+
+
+==== /commands/ping.ts ====
+
+import { Command } from '@sapphire/framework';
+import { MessageFlags } from 'discord.js';
+import { createEmbed } from '../utilities/embed';
+import emojis from '../utilities/emojis.json';
+
+export class PingCommand extends Command {
+  public constructor(context: Command.LoaderContext, options: Command.Options) {
+    super(context, { ...options });
+  }
+
+  public override registerApplicationCommands(registry: Command.Registry) {
+    registry.registerChatInputCommand(
+      builder =>
+        builder
+          .setName('ping')
+          .setDescription('Check bot latency and API response time'),
+      {
+        idHints: ['1361302221651972288'],
+      }
+    );
+  }
+
+  public override async chatInputRun(
+    interaction: Command.ChatInputCommandInteraction
+  ) {
+    try {
+      await interaction.deferReply({
+        flags: MessageFlags.Ephemeral,
+      });
+
+      const reply = await interaction.fetchReply();
+      const roundtripLatency =
+        reply.createdTimestamp - interaction.createdTimestamp;
+      const apiLatency = Math.round(this.container.client.ws.ping);
+
+      const embed = createEmbed({
+        title: `${emojis.checkmark} Pong!`,
+        text: 'Latency and API response time',
+        theme: 'success',
+        fields: [
+          {
+            name: 'Bot Latency',
+            value: `${roundtripLatency}ms`,
+            inline: true,
+          },
+          {
+            name: 'API Latency',
+            value: `${apiLatency}ms`,
+            inline: true,
+          },
+        ],
+        timestamp: true,
+      });
+
+      return interaction.editReply({
+        content: null,
+        embeds: [embed],
+      });
+    } catch (error) {
+      const errorEmbed = createEmbed({
+        title: `${emojis.nocross} Error`,
+        text: 'Failed to retrieve latency information.',
+        theme: 'failure',
+      });
+
+      if (!interaction.replied) {
+        return interaction.reply({
+          embeds: [errorEmbed],
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+      return interaction.editReply({
+        embeds: [errorEmbed],
+      });
+    }
+  }
+}
+
+
+==== /commands/sendSupportTicketEmbed.ts ====
+
+import { Command } from '@sapphire/framework';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  MessageFlags,
+  PermissionFlagsBits,
+} from 'discord.js';
+import { createEmbed } from '../utilities/embed';
+import emojis from '../utilities/emojis.json';
+
+export class PingCommand extends Command {
+  public constructor(context: Command.LoaderContext, options: Command.Options) {
+    super(context, { ...options });
+  }
+
+  public override registerApplicationCommands(registry: Command.Registry) {
+    registry.registerChatInputCommand(
+      builder =>
+        builder
+          .setName('send-support-ticket-embed')
+          .setDescription('Send a support ticket embed to the support channel')
+          .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+      {
+        idHints: ['1361704488565604486'],
+      }
+    );
+  }
+
+  public override async chatInputRun(
+    interaction: Command.ChatInputCommandInteraction
+  ) {
+    const embed = new EmbedBuilder()
+      .setDescription(
+        '## <:novawareemoji:1276797939074727948> Fortune Frenzy Support\n**Need help?** Click the button below to open a ticket and our team will get back to you as soon as possible.'
+      )
+      .setColor('#d0a955')
+      .setFooter({
+        text: 'Available 24/7. Please be kind to our staff.',
+        iconURL:
+          'https://cdn.discordapp.com/emojis/1252703372998611085.webp?size=96',
+      });
+
+    const button = new ButtonBuilder()
+      .setCustomId('create-ticket')
+      .setLabel('Create Ticket')
+      .setEmoji("<:mail:1361707222056439947>")
+      .setStyle(ButtonStyle.Secondary);
+
+    const msgObject = {
+      embeds: [embed],
+      components: [new ActionRowBuilder<ButtonBuilder>().addComponents(button)],
+    };
+
+    if (interaction.channel?.isSendable()) {
+      await interaction.channel.send(msgObject);
+    } else {
+      await interaction.reply({
+        ...msgObject,
+      });
+    }
+  }
+}
+
+
+==== /listeners/ready.ts ====
+
+import { ApplyOptions } from '@sapphire/decorators';
+import { Listener } from '@sapphire/framework';
+import { ActivityType } from 'discord.js';
+
+@ApplyOptions<Listener.Options>({ once: true })
+export class ReadyListener extends Listener {
+  public run() {
+    this.container.logger.info(
+      `Logged in as ${this.container.client.user?.tag}`
+    );
+
+    const user = this.container.client.user;
+    if (!user) return;
+
+    user.setPresence({
+      activities: [
+        {
+          type: ActivityType.Custom,
+          name: 'custom',
+          state: 'dms open for support!',
+        },
+      ],
+    });
+  }
+}
+
+
+==== /index.ts ====
+
+import { SapphireClient } from '@sapphire/framework';
+import { GatewayIntentBits, Partials } from 'discord.js';
+
+const client = new SapphireClient({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.DirectMessages,
+  ],
+  partials: [
+    Partials.Message,
+    Partials.Channel,
+    Partials.GuildMember,
+    Partials.Reaction,
+  ],
+  loadMessageCommandListeners: true,
+});
+
+client.login(process.env.DISCORD_KEY);
+
+==== /utilities/embed.ts ====
+
+import {
+  EmbedBuilder,
+  type ColorResolvable,
+  type EmbedAuthorOptions,
+  type EmbedFooterOptions,
+  type EmbedField,
+} from 'discord.js';
+
+type EmbedTheme = 'success' | 'warning' | 'failure' | 'neutral';
+
+interface EmbedOptions {
+  text?: string;
+  theme?: EmbedTheme;
+  title?: string;
+  author?: EmbedAuthorOptions;
+  footer?: EmbedFooterOptions;
+  fields?: EmbedField[];
+  timestamp?: boolean | Date;
+  thumbnail?: string;
+  image?: string;
+  url?: string;
+  color?: ColorResolvable;
+}
+
+const themeColors: Record<EmbedTheme, ColorResolvable> = {
+  success: '#38cc96', // Green
+  warning: '#ffaa00', // Orange
+  failure: '#df6461', // Red
+  neutral: '#0099ff', // Blue
+};
+
+export function createEmbed(options: EmbedOptions): EmbedBuilder {
+  const {
+    text,
+    theme = 'neutral',
+    title,
+    author,
+    footer,
+    fields,
+    timestamp,
+    thumbnail,
+    image,
+    url,
+    color,
+  } = options;
+
+  const description = text
+    ? title
+      ? `### ${title}\n${text}`
+      : text
+    : title
+      ? `### ${title}`
+      : '';
+  const embed = new EmbedBuilder()
+    .setColor(color || themeColors[theme])
+    .setDescription(description);
+
+  if (author) embed.setAuthor(author);
+  if (footer) embed.setFooter(footer);
+  if (fields?.length) embed.addFields(fields);
+  if (timestamp)
+    embed.setTimestamp(timestamp === true ? new Date() : timestamp);
+  if (thumbnail) embed.setThumbnail(thumbnail);
+  if (image) embed.setImage(image);
+  if (url) embed.setURL(url);
+
+  return embed;
+}
+
+
+==== /utilities/emojis.json ====
+
+{
+    "checkmark": "<:checkmark:1361308061922365581>",
+    "thumbsup": "<:thumbsup:1361308054754426981>",
+    "nocross": "<:nocross:1361308038895632604>",
+
+    "white_nocross": "<:Cross:1302340638691557406>",
+    "white_checkmark": "<:Check:1302340568948412416>"
+}
+
+==== /utilities/openai.ts ====
+
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export async function getOpenAI() {
+  return client;  
+}
+
+==== /utilities/tickets/prompt.txt ====
+
+Classify a user's text into one of four categories and provide a severity rating from 1 to 10, using the provided examples for determining severity.
+
+Consider the following categories for classification:
+- "general_support" for general questions and inquiries.
+- "game issues" for any issues with the game, payment problems, bugs, etc.
+- "user reports" for reporting other users for breaking rules, etc.
+- "staff reports/management" for reporting members of staff and contacting seniors.  
+  - *Note: Members of staff may be referred to as "mods," "moderators," "admins," "staff," etc., always put mod reports into management tickets no matter what.*
+
+Additionally, determine the urgency or severity of the matter, providing a rating from 1 (least urgent) to 10 (most urgent). Severity depends on several factors, such as:
+- Severity 1: Minor issues, e.g., someone being rude.
+- Severity 10: Serious issues, e.g., major game glitch affecting the economy.
+
+If you are unsure which category to assign or if the question is general, default to "general_support".
+
+# Steps
+
+1. **Understand the Content**: Analyze the user's text to understand the main subject, context, and intent.
+2. **Classify the Text**: Based on the content, assign the most appropriate category out of the four options provided.
+3. **Determine Severity**: Evaluate the urgency or severity of the issue discussed in the text and assign a rating between 1 and 10.
+
+# Output Format
+
+Provide the output in the following JSON format:
+```json
+{
+  "category": "your_category_here",
+  "severity": your_severity_rating_here
+}
+```
+
+# Examples
+
+**Example 1:**
+- **Input**: "I paid for an item, but it hasn't been delivered in the game."
+- **Output**:
+  ```json
+  {
+    "category": "game issues",
+    "severity": 7
+  }
+  ```
+
+**Example 2:**
+- **Input**: "I'd like to report someone for exploiting bugs in the game."
+- **Output**:
+  ```json
+  {
+    "category": "user reports",
+    "severity": 6
+  }
+  ```
+
+# Notes
+
+- Ensure each text is thoroughly analyzed for accurate classification and severity rating.
+- Consider context and implied urgency when assigning severity ratings.
+
+==== /utilities/tickets/ticket_channels.json ====
+
+{
+    "channel_ids": {
+        "general_support": "1361728934231670894",
+        "game_issues": "1361337366937206888",
+        "user_reports": "1361337436751269988",
+        "staff_reports_management": "1361724113135210757"
+    },
+    "readable_names": {
+        "general_support": "General Support",
+        "game_issues": "Game Issues",
+        "user_reports": "User Reports",
+        "staff_reports_management": "Management"
+    }
+}
+
+==== /utilities/tickets/category_welcome_msgs/general_support.txt ====
+
+Hey {{PING}}! Thanks for reaching out to us. Our team will review your ticket shortly—please include as much info as you can so we can get your problem sorted quickly.
+
+==== /utilities/tickets/category_welcome_msgs/game_issues.txt ====
+
+Hey <@733707800345051216>! Thanks for letting us know something’s up. Our team will review your ticket shortly—please include as much info as you can so we can get it sorted quickly.
+
+==== /utilities/tickets/category_welcome_msgs/user_reports.txt ====
+
+Hey {{PING}}, thanks for your report! Our team will review it within 24–48 hours, but please note times may vary. To help us speed things up, please attach any evidence you have. 
+
+While you wait, could you answer the following:
+- What exactly happened?
+- When did it occur (approximate date/time)?
+- Who was involved (usernames)?
+
+==== /utilities/tickets/category_welcome_msgs/staff_reports_management.txt ====
+
+Hey {{PING}}, thanks for reaching out. This ticket has been flagged for management review. Reports involving staff (mods, admins, etc.) are taken seriously, and a senior team member will review your concerns shortly.
+
+In the mean time, are you able to answer any of the following questions? It'll help a bunch:
+- Which staff member are you reporting (username or role)?
+- What happened, and when?
+- Can you explain the situation in detail?
+- Do you have any supporting evidence (screenshots, messages, etc.)?
+
+==== /services/mariadb.ts ====
+
+import mariadb from "mariadb";
+
+let pools: { [key: string]: mariadb.Pool } = {};
+type DatabaseName = "NovawareDiscord" | "Game1";
+
+const credentials = {
+	NovawareDiscord: [process.env.DISCORD_MARIADB_USER, process.env.DISCORD_MARIADB_PASSWORD],
+	Game1: [process.env.GAME1_MARIADB_USER, process.env.GAME1_MARIADB_PASSWORD],
+};
+
+function initializePool(database: DatabaseName): void {
+	if (credentials[database] === undefined) {
+		console.error(`No credentials found for ${database}`);
+		return;
+	}
+
+	pools[database] = mariadb.createPool({
+		host: "172.18.0.4",
+		port: 6033,
+		user: credentials[database][0],
+		password: credentials[database][1],
+		database: database,
+		connectionLimit: 30,
+	});
+}
+
+export async function getMariaConnection(database: DatabaseName = "NovawareDiscord") {
+	if (!pools[database]) {
+		initializePool(database);
+	}
+	return pools[database].getConnection();
+}
+
+
+==== /services/redis.ts ====
+
+import { createClient, RedisClientType } from 'redis';
+
+let client: RedisClientType;
+
+async function initialize(): Promise<void> {
+  client = createClient({
+    url: 'redis://172.18.0.5:6379',
+    password: process.env.REDIS_PASSWORD,
+    socket: {
+      host: '172.18.0.5',
+      port: 6379,
+      tls: false,
+    },
+    database: 0,
+    commandsQueueMaxLength: 1000,
+  });
+
+  client.on('error', error => {
+    console.error('Redis Client Error:', error);
+  });
+
+  await client.connect();
+}
+
+export async function getRedisConnection(): Promise<RedisClientType> {
+  if (!client) {
+    await initialize();
+  }
+
+  return client;
+}
+
+==== /services/ai/AIService.ts ====
+
+import { getOpenAI } from '../../utilities/openai';
+import prompt from '../../utilities/tickets/prompt.txt';
+
+export async function getCategoryAndSeverity(text: string): Promise<{
+  category:
+    | 'general_support'
+    | 'game_issues'
+    | 'user_reports'
+    | 'staff_reports_management';
+  severity: number;
+} | null> {
+  const openai = await getOpenAI();
+
+  const chatCompletion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: prompt,
+      },
+      {
+        role: 'user',
+        content: text,
+      },
+    ],
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: 'category_response',
+        strict: true,
+        schema: {
+          type: 'object',
+          properties: {
+            category: {
+              type: 'string',
+              description: "The category of the user's text.",
+              enum: [
+                'general_support',
+                'game_issues',
+                'user_reports',
+                'staff_reports_management',
+              ],
+            },
+            severity: {
+              type: 'number',
+              description:
+                'Severity or urgency rating on a scale from 1 to 10.',
+            },
+          },
+          required: ['category', 'severity'],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const content = chatCompletion.choices[0].message.content;
+  if (!content) return null;
+  const json = JSON.parse(content);
+  if (json.category && json.severity) {
+    return {
+      category: json.category,
+      severity: json.severity,
+    };
+  }
+
+  return null;
+}
+
+
+==== /interaction-handlers/modals/createTicketModal.ts ====
+
+import {
+  InteractionHandler,
+  InteractionHandlerTypes,
+} from '@sapphire/framework';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  MessageFlags,
+  type ModalSubmitInteraction,
+} from 'discord.js';
+import { getCategoryAndSeverity } from '../../services/ai/AIService';
+import { createEmbed } from '../../utilities/embed';
+import emojis from '../../utilities/emojis.json';
+import ticketChannels from '../../utilities/tickets/ticket_channels.json';
+import { getMariaConnection } from '../../services/mariadb';
+
+import generalSupportWelcomeMsg from '../../utilities/tickets/category_welcome_msgs/general_support.txt';
+import gameIssuesWelcomeMsg from '../../utilities/tickets/category_welcome_msgs/game_issues.txt';
+import userReportsWelcomeMsg from '../../utilities/tickets/category_welcome_msgs/user_reports.txt';
+import staffReportsManagementWelcomeMsg from '../../utilities/tickets/category_welcome_msgs/staff_reports_management.txt';
+
+const welcomeMsgs = {
+  general_support: generalSupportWelcomeMsg,
+  game_issues: gameIssuesWelcomeMsg,
+  user_reports: userReportsWelcomeMsg,
+  staff_reports_management: staffReportsManagementWelcomeMsg,
+};
+
+export class CreateTicketModalHandler extends InteractionHandler {
+  public constructor(
+    ctx: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options
+  ) {
+    super(ctx, {
+      ...options,
+      interactionHandlerType: InteractionHandlerTypes.ModalSubmit,
+    });
+  }
+
+  public override parse(interaction: ModalSubmitInteraction) {
+    if (interaction.customId !== 'create-ticket-modal') return this.none();
+    return this.some();
+  }
+
+  public async run(interaction: ModalSubmitInteraction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const problemDescription = interaction.fields.getTextInputValue(
+      'problem-description'
+    );
+    const categoryAndSeverity =
+      await getCategoryAndSeverity(problemDescription);
+    if (!categoryAndSeverity) {
+      await interaction.editReply({
+        embeds: [
+          createEmbed({
+            theme: 'failure',
+            title: `${emojis.nocross} Error`,
+            text: 'Something went wrong, please try again later.',
+          }),
+        ],
+      });
+      return;
+    }
+
+    const { category, severity } = categoryAndSeverity;
+    const parentChannelId = ticketChannels.channel_ids[category];
+    const maria = await getMariaConnection('NovawareDiscord');
+
+    await maria.query(
+      'INSERT INTO ticket_counters (category, counter) VALUES (?, 1) ON DUPLICATE KEY UPDATE counter = counter + 1',
+      [category]
+    );
+
+    const result = await maria.query(
+      'SELECT counter FROM ticket_counters WHERE category = ?',
+      [category]
+    );
+
+    const ticketNumber = result[0].counter.toString().padStart(4, '0');
+
+    const channel = await interaction.guild?.channels.create({
+      name: `${interaction.user.username}-${ticketNumber}`,
+      parent: parentChannelId,
+    });
+
+    if (!channel) {
+      return await interaction.editReply({
+        embeds: [
+          createEmbed({
+            theme: 'failure',
+            title: `${emojis.nocross} Error`,
+            text: 'Something went wrong, please try again later.',
+          }),
+        ],
+      });
+    }
+
+    await channel.send({
+      content: `<@${interaction.user.id}> <@&1277325690664124428>`,
+      embeds: [
+        createEmbed({
+          text: `${welcomeMsgs[category].replace(
+            '{{PING}}',
+            `<@${interaction.user.id}>`
+          )}\n\n**You said:**\n${problemDescription}`,
+          theme: 'success',
+          color: "#D0A955",
+          footer: {
+            iconURL: interaction.user.displayAvatarURL(),
+            text: `${interaction.user.username}`,
+          },
+          timestamp: true,
+        }),
+      ],
+      components: [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId('close-ticket')
+            .setLabel('Close')
+            .setEmoji(emojis.white_nocross)
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId('claim-ticket')
+            .setLabel('Claim')
+            .setEmoji(emojis.white_checkmark)
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
+
+    // const webhook = await channel.createWebhook({
+    //   name: `${interaction.user.displayName}`,
+    //   avatar: interaction.user.displayAvatarURL(),
+    // });
+
+    // await webhook.send(problemDescription);
+    // webhook.delete();
+
+    channel.permissionOverwrites.edit(interaction.user, {
+      ViewChannel: true,
+      SendMessages: true,
+      ReadMessageHistory: true,
+      AttachFiles: true,
+      EmbedLinks: true,
+      AddReactions: true,
+    });
+
+    await interaction.editReply({
+      embeds: [
+        createEmbed({
+          title: `${emojis.checkmark} Ticket Created`,
+          text: `You can access it here: <#${channel.id}>`,
+          theme: 'success',
+        }),
+      ],
+    });
+  }
+}
+
+
+==== /interaction-handlers/buttons/createTicketButton.ts ====
+
+import {
+  InteractionHandler,
+  InteractionHandlerTypes,
+} from '@sapphire/framework';
+import {
+  ActionRowBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  type ButtonInteraction,
+  GuildMember,
+  MessageFlags,
+} from 'discord.js';
+import { createEmbed } from '../../utilities/embed';
+import emojis from '../../utilities/emojis.json';
+
+export class CreateTicketButton extends InteractionHandler {
+  public constructor(
+    ctx: InteractionHandler.LoaderContext,
+    options: InteractionHandler.Options
+  ) {
+    super(ctx, {
+      ...options,
+      interactionHandlerType: InteractionHandlerTypes.Button,
+    });
+  }
+
+  public override parse(interaction: ButtonInteraction) {
+    if (interaction.customId !== 'create-ticket') return this.none();
+    return this.some();
+  }
+
+  public async run(interaction: ButtonInteraction) {
+    const requiredRole = '1180093268025950338';
+    const member = interaction.member as GuildMember;
+
+    if (!member || !(member instanceof GuildMember)) {
+      return await interaction.reply({
+        embeds: [
+          createEmbed({
+            theme: 'failure',
+            title: `${emojis.nocross} Error`,
+            text: 'Something went wrong, please try again later.',
+          }),
+        ],
+        flags: [MessageFlags.Ephemeral],
+      });
+    }
+
+    if (!member.roles.cache.has(requiredRole)) {
+      return await interaction.reply({
+        embeds: [
+          createEmbed({
+            theme: 'failure',
+            title: `${emojis.nocross} Error`,
+            text: 'Tickets are not available to the public yet. Please contact a staff member if you need help.',
+          }),
+        ],
+        flags: [MessageFlags.Ephemeral],
+      });
+    }
+
+    await interaction.showModal(
+      new ModalBuilder()
+        .setCustomId('create-ticket-modal')
+        .setTitle('Create Ticket')
+        .addComponents(
+          new ActionRowBuilder<TextInputBuilder>().addComponents(
+            new TextInputBuilder()
+              .setCustomId('problem-description')
+              .setLabel('What is the problem?')
+              .setStyle(TextInputStyle.Paragraph)
+          )
+        )
+    );
+  }
+}

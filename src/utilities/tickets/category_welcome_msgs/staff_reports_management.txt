@@ -1,0 +1,7 @@
+Hey {{PING}}, thanks for reaching out. This ticket has been flagged for management review. Reports involving staff (mods, admins, etc.) are taken seriously, and a senior team member will review your concerns shortly.
+
+In the mean time, are you able to answer any of the following questions? It'll help a bunch:
+- Which staff member are you reporting (username or role)?
+- What happened, and when?
+- Can you explain the situation in detail?
+- Do you have any supporting evidence (screenshots, messages, etc.)?

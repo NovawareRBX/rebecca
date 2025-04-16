@@ -1,0 +1,6 @@
+Hey {{PING}}, thanks for your report! Our team will review it within 24–48 hours, but please note times may vary. To help us speed things up, please attach any evidence you have. 
+
+While you wait, could you answer the following:
+- What exactly happened?
+- When did it occur (approximate date/time)?
+- Who was involved (usernames)?

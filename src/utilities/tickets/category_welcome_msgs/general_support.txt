@@ -1,0 +1,1 @@
+Hey {{PING}}! Thanks for reaching out to us. Our team will review your ticket shortly—please include as much info as you can so we can get your problem sorted quickly.

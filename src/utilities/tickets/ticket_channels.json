@@ -1,0 +1,14 @@
+{
+    "channel_ids": {
+        "general_support": "1361728934231670894",
+        "game_issues": "1361337366937206888",
+        "user_reports": "1361337436751269988",
+        "staff_reports_management": "1361724113135210757"
+    },
+    "readable_names": {
+        "general_support": "General Support",
+        "game_issues": "Game Issues",
+        "user_reports": "User Reports",
+        "staff_reports_management": "Management"
+    }
+}
