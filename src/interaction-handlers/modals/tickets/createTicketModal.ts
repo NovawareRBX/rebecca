@@ -106,7 +106,7 @@ export class CreateTicketModalHandler extends InteractionHandler {
             `<@${interaction.user.id}>`
           )}\n\n**You said:**\n${problemDescription}`,
           theme: 'success',
-          color: "#D0A955",
+          color: '#D0A955',
           footer: {
             iconURL: interaction.user.displayAvatarURL(),
             text: `${interaction.user.username}`,
@@ -125,7 +125,7 @@ export class CreateTicketModalHandler extends InteractionHandler {
             .setCustomId('claim-ticket')
             .setLabel('Claim')
             .setEmoji(emojis.white_checkmark)
-            .setStyle(ButtonStyle.Secondary),
+            .setStyle(ButtonStyle.Secondary)
         ),
       ],
     });
@@ -150,8 +150,14 @@ export class CreateTicketModalHandler extends InteractionHandler {
     });
 
     await maria.query(
-      "INSERT INTO support_tickets (customer_id, category, channel_id, ticket_number, initial_message_id) VALUES (?, ?, ?, ?, ?)",
-      [interaction.user.id, category, channel.id, ticketNumber, initialMessage.id]
+      'INSERT INTO support_tickets (customer_id, category, channel_id, ticket_number, initial_message_id) VALUES (?, ?, ?, ?, ?)',
+      [
+        interaction.user.id,
+        category,
+        channel.id,
+        ticketNumber,
+        initialMessage.id,
+      ]
     );
 
     maria.release();

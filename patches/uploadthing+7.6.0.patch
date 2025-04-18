@@ -1,0 +1,13 @@
+diff --git a/node_modules/uploadthing/server/index.js b/node_modules/uploadthing/server/index.js
+index 7533e95..24082ac 100644
+--- a/node_modules/uploadthing/server/index.js
++++ b/node_modules/uploadthing/server/index.js
+@@ -32,7 +32,7 @@ import { uploadWithoutProgress } from '../dist/_internal/upload-server.js';
+         super(parts, optionsWithDefaults);
+         this.name = name;
+         this.customId = optionsWithDefaults.customId;
+-        this.lastModified = optionsWithDefaults.lastModified;
++        // this.lastModified = optionsWithDefaults.lastModified;
+     }
+ }
+ 

@@ -3,8 +3,10 @@
   "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
-    "@types/bun": "latest",
-    "prettier": "^3.5.3"
+    "@types/node": "^22.14.1",
+    "patch-package": "^8.0.0",
+    "prettier": "^3.5.3",
+    "ts-node": "^10.9.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
@@ -26,6 +28,9 @@
     "start": "bun run src/index.ts",
     "dev": "bun --hot run src/index.ts",
     "format": "bun x prettier --write \"src/**/*.{ts,tsx}\"",
-    "format:check": "bun x prettier --check \"src/**/*.{ts,tsx}\""
+    "format:check": "bun x prettier --check \"src/**/*.{ts,tsx}\"",
+    "postinstall": "patch-package",
+    "docker": "docker stop FortuneBot || true && docker rm FortuneBot || true && docker rmi fortune-bot:latest || true && docker build -t fortune-bot . && docker run --net APIs --name FortuneBot --restart=always fortune-bot",
+    "docker:detached": "docker stop FortuneBot || true && docker rm FortuneBot || true && docker rmi fortune-bot:latest || true && docker build -t fortune-bot . && docker run -d --net APIs --name FortuneBot --restart=always fortune-bot"
   }
 }

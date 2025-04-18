@@ -103,7 +103,7 @@ export class SaveTranscriptButton extends InteractionHandler {
           text,
         }),
       ],
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }
