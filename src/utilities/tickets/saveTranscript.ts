@@ -4,10 +4,15 @@ import {
   TextChannel,
   FetchMessagesOptions,
   Message,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from 'discord.js';
 import { getMariaConnection } from '../../services/mariadb';
 import { UTApi } from 'uploadthing/server';
 import crypto from 'crypto';
+import { createEmbed } from '../embed';
+import data from './ticket_channels.json' assert { type: 'json' };
 
 interface StrippedMessage {
   content: string;
@@ -84,6 +89,92 @@ async function saveTranscript(
   return transcriptId;
 }
 
+async function logNewTranscript(
+  client: Client,
+  channel_id: Snowflake,
+  transcript_id: string
+) {
+  const channel = await client.channels.fetch('1362559684841574501');
+  if (!channel || !(channel instanceof TextChannel)) {
+    throw new Error('Invalid or inaccessible channel');
+  }
+
+  const maria = await getMariaConnection();
+  const [ticket] = await maria.query(
+    'SELECT * FROM support_tickets WHERE channel_id = ?',
+    [channel_id]
+  );
+
+  const ticket_channel = await client.channels.fetch(ticket.channel_id);
+  const customer = await client.users.fetch(ticket.customer_id);
+  if (!ticket_channel || !(ticket_channel instanceof TextChannel)) {
+    throw new Error('Invalid or inaccessible channel');
+  }
+
+  if (channel.isSendable()) {
+    const message = await channel.send({
+      embeds: [
+        createEmbed({
+          theme: 'success',
+          title: `New Transcript Saved`,
+          text: `The Transcript for ${data.readable_names[ticket.category as keyof typeof data.readable_names]} Ticket #${ticket.ticket_number.toString().padStart(4, '0')} has been saved`,
+          fields: [
+            {
+              name: 'Ticket Owner',
+              value: `<@${ticket.customer_id}>`,
+              inline: true,
+            },
+            {
+              name: 'Ticket Name',
+              value: ticket_channel.name,
+              inline: true,
+            },
+            {
+              name: 'Ticket Category',
+              value:
+                data.readable_names[
+                  ticket.category as keyof typeof data.readable_names
+                ],
+              inline: true,
+            },
+            {
+              name: 'Transcript ID',
+              value: transcript_id,
+              inline: true,
+            },
+            {
+              name: 'Ticket Claimer',
+              value: ticket.staff_id ? `<@${ticket.staff_id}>` : 'No one',
+              inline: true,
+            },
+          ],
+          author: {
+            name: customer.username,
+            iconURL: customer.displayAvatarURL(),
+          },
+          timestamp: new Date(),
+        }),
+      ],
+      components: [
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder({
+            label: 'View Transcript',
+            style: ButtonStyle.Link,
+            url: `https://trcs.frazers.co/${transcript_id}`,
+          })
+        ),
+      ],
+    });
+
+    await maria.query(
+      'UPDATE support_tickets SET transcript_message_id = ? WHERE channel_id = ?',
+      [message.id, channel_id]
+    );
+  }
+
+  maria.release();
+}
+
 export default async function (
   client: Client,
   channel_id: Snowflake
@@ -106,7 +197,9 @@ export default async function (
 
   const allAttachments = stripped.flatMap(message => message.attachments);
   if (allAttachments.length === 0) {
-    return saveTranscript(channel_id, stripped);
+    const transcriptId = await saveTranscript(channel_id, stripped);
+    logNewTranscript(client, channel_id, transcriptId);
+    return transcriptId;
   }
 
   const utapi = new UTApi();
@@ -120,5 +213,7 @@ export default async function (
     }
   }
 
-  return saveTranscript(channel_id, stripped);
+  const transcriptId = await saveTranscript(channel_id, stripped);
+  logNewTranscript(client, channel_id, transcriptId);
+  return transcriptId;
 }

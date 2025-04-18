@@ -14,6 +14,7 @@ import {
 import { createEmbed } from '../../../utilities/embed';
 import emojis from '../../../utilities/emojis.json' assert { type: 'json' };
 import { getMariaConnection } from '../../../services/mariadb';
+import saveTranscript from '../../../utilities/tickets/saveTranscript';
 
 export class CreateTicketButton extends InteractionHandler {
   public constructor(
@@ -102,25 +103,26 @@ export class CreateTicketButton extends InteractionHandler {
           createEmbed({
             theme: 'success',
             title: `${emojis.checkmark} Ticket Closed`,
-            text: `The ticket has been closed.`,
+            text: `The ticket has been closed. Please do not delete this channel until the transcript has been saved!`,
           }),
         ],
         components: [
           new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder({
-              customId: 'reopen-ticket',
-              label: 'Reopen',
-              style: ButtonStyle.Secondary,
-            }),
-            new ButtonBuilder({
-              customId: 'save-ticket',
-              label: 'Save Transcript',
-              style: ButtonStyle.Secondary,
-            }),
+            // new ButtonBuilder({
+            //   customId: 'reopen-ticket',
+            //   label: 'Reopen',
+            //   style: ButtonStyle.Secondary,
+            // }),
+            // new ButtonBuilder({
+            //   customId: 'save-ticket',
+            //   label: 'Save Transcript',
+            //   style: ButtonStyle.Secondary,
+            // }),
             new ButtonBuilder({
               customId: 'delete-ticket',
               label: 'Delete',
-              style: ButtonStyle.Danger,
+              style: ButtonStyle.Secondary,
+              disabled: true,
             })
           ),
         ],
@@ -133,6 +135,93 @@ export class CreateTicketButton extends InteractionHandler {
     );
 
     maria.release();
+
+    const uuid = await saveTranscript(
+      interaction.client,
+      interaction.channelId
+    );
+    if (closedMessage) {
+      await closedMessage.edit({
+        embeds: [
+          createEmbed({
+            theme: 'success',
+            title: `${emojis.checkmark} Ticket Closed`,
+            text: `The ticket has been closed.`,
+          }),
+        ],
+        components: [
+          new ActionRowBuilder<ButtonBuilder>().addComponents(
+            // new ButtonBuilder({
+            //   customId: 'reopen-ticket',
+            //   label: 'Reopen',
+            //   style: ButtonStyle.Secondary,
+            // }),
+            // new ButtonBuilder({
+            //   customId: 'save-ticket',
+            //   label: 'Save Transcript',
+            //   style: ButtonStyle.Secondary,
+            // }),
+            new ButtonBuilder({
+              customId: 'delete-ticket',
+              label: 'Delete',
+              style: ButtonStyle.Secondary,
+              disabled: false,
+            }),
+            new ButtonBuilder({
+              label: 'View Transcript',
+              style: ButtonStyle.Link,
+              url: `https://trcs.frazers.co/${uuid}`,
+            })
+          ),
+        ],
+      });
+    }
+
+    const customer = await interaction.guild?.members.fetch(ticket.customer_id);
+    const components = [];
+    let description =
+      interaction.member?.user.id === ticket.customer_id
+        ? `Thanks for reaching out to Fortune Frenzy support. It looks like you closed this ticket yourself, so we’re hoping that means everything's sorted. If you need anything else, don’t hesitate to open a new ticket.`
+        : `Thanks for contacting Fortune Frenzy support. We’ve gone ahead and closed your ticket, and we hope we were able to help get things sorted. If you have more questions, feel free to open a new one anytime.`;
+
+    if (ticket.staff_id) {
+      const staff = await interaction.guild?.members.fetch(ticket.staff_id);
+      description += `\n\nOur moderator, **${staff?.user.username}**, assisted you with this ticket. Feel free to leave an optional review by clicking the button below.`;
+
+      components.push(
+        new ButtonBuilder({
+          customId: `review-ticket-${ticket.id}`,
+          label: 'Review',
+          emoji: '⭐',
+          style: ButtonStyle.Secondary,
+        })
+      );
+    }
+
+    if (uuid) {
+      components.push(
+        new ButtonBuilder({
+          label: 'View Transcript',
+          style: ButtonStyle.Link,
+          url: `https://trcs.frazers.co/${uuid}`,
+        })
+      );
+    }
+
+    if (customer) {
+      await customer.send({
+        embeds: [
+          createEmbed({
+            theme: 'success',
+            title: `Your ticket (#${ticket.ticket_number.toString().padStart(4, '0')}) has been closed`,
+            text: description,
+          }),
+        ],
+        components: [
+          new ActionRowBuilder<ButtonBuilder>().addComponents(components),
+        ],
+      });
+    }
   }
 
   private async closePreConfirm(interaction: ButtonInteraction) {

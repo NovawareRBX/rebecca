@@ -114,8 +114,8 @@ export class ClaimTicketButton extends InteractionHandler {
   ) {
     const query =
       action === 'unclaim'
-        ? 'UPDATE support_tickets SET staff_id = NULL, claimed_message_id = NULL WHERE channel_id = ?'
-        : 'UPDATE support_tickets SET staff_id = ?, claimed_message_id = NULL WHERE channel_id = ?';
+        ? 'UPDATE support_tickets SET staff_id = NULL, claimed_at = NULL, claimed_message_id = NULL WHERE channel_id = ?'
+        : 'UPDATE support_tickets SET staff_id = ?, claimed_at = NOW(), claimed_message_id = NULL WHERE channel_id = ?';
     const params =
       action === 'unclaim'
         ? [interaction.channel?.id]
